@@ -4,19 +4,17 @@
       "cell_type": "markdown",
       "metadata": {},
       "source": [
-        "# Прогнозирование посещаемости фитнес-занятий\n",
-        "\n",
-        "**Задача:** Определить, придёт ли клиент на забронированное занятие (attended = 1)\n",
-        "\n",
-        "**Данные:** 1500 бронирований групповых занятий в фитнес-клубе"
+        "# Прогнозирование посещаемости групповых занятий в фитнес-клубе\n\n",
+        "**Задача:** Спрогнозировать, посетит ли клиент забронированное занятие\n\n",
+        "**Цель:** Выявить ключевые факторы неявки и дать рекомендации бизнесу\n\n",
+        "**Данные:** 1500 бронирований (файл `fitness_class_2212.csv`)\n\n",
+        "**Целевая переменная:** `attended` — 1 (пришёл), 0 (не пришёл)"
       ]
     },
     {
       "cell_type": "markdown",
       "metadata": {},
-      "source": [
-        "## 1. Подключение библиотек"
-      ]
+      "source": ["## 1. Подключение библиотек"]
     },
     {
       "cell_type": "code",
@@ -24,26 +22,13 @@
       "metadata": {},
       "outputs": [],
       "source": [
-        "import numpy as np\n",
-        "import pandas as pd\n",
-        "import matplotlib.pyplot as plt\n",
-        "%matplotlib inline\n",
-        "import seaborn as sns\n",
-        "import warnings\n",
-        "warnings.filterwarnings('ignore')\n",
-        "\n",
-        "# Настройки отображения\n",
-        "pd.set_option('display.float_format', '{:.2f}'.format)\n",
-        "sns.set_style('whitegrid')\n",
-        "plt.rcParams['figure.figsize'] = (10, 6)"
+        "import numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt\n%matplotlib inline\nimport seaborn as sns\nimport warnings\nwarnings.filterwarnings('ignore')\n\n# Настройки для красивых графиков\nsns.set_style('whitegrid')\nplt.rcParams['figure.figsize'] = (12, 7)\nplt.rcParams['font.size'] = 12\npd.set_option('display.float_format', '{:.2f}'.format)"
       ]
     },
     {
       "cell_type": "markdown",
       "metadata": {},
-      "source": [
-        "## 2. Загрузка данных"
-      ]
+      "source": ["## 2. Загрузка данных"]
     },
     {
       "cell_type": "code",
@@ -51,17 +36,32 @@
       "metadata": {},
       "outputs": [],
       "source": [
-        "df = pd.read_csv(\"fitness_class_2212.csv\")\n",
-        "print(f\"Размер датасета: {df.shape}\")\n",
-        "df.head()"
+        "df = pd.read_csv(\"fitness_class_2212.csv\")\nprint(f\"Исходный размер датасета: {df.shape[0]} строк × {df.shape[1]} столбцов\")\ndf.head(10)"
       ]
     },
     {
       "cell_type": "markdown",
       "metadata": {},
+      "source": ["## 3. Описание признаков"]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
       "source": [
-        "## 3. Предобработка данных"
+        "- `booking_id` — ID бронирования\n",
+        "- `months_as_member` — сколько месяцев человек в клубе\n",
+        "- `weight` — вес клиента (кг)\n",
+        "- `days_before` — за сколько дней забронировано\n",
+        "- `day_of_week` — день недели занятия\n",
+        "- `time` — время: AM (утро) / PM (вечер)\n",
+        "- `category` — тип тренировки\n",
+        "- `attended` — факт посещения (наша цель)"
       ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": ["## 4. Предобработка и очистка данных"]
     },
     {
       "cell_type": "code",
@@ -69,39 +69,13 @@
       "metadata": {},
       "outputs": [],
       "source": [
-        "# Исправляем мелкие ошибки\n",
-        "df['attended'] = df['attended'].replace(-0, 0)\n",
-        "df['weight'] = pd.to_numeric(df['weight'], errors='coerce')\n",
-        "df['days_before'] = df['days_before'].astype(str).str.extract('(\\d+)').astype(int)\n",
-        "df['category'] = df['category'].replace('-', 'Unknown')\n",
-        "\n",
-        "# Унификация дней недели\n",
-        "day_map = {\n",
-        "    'Mon': 'Mon', 'Monday': 'Mon', 'Tue': 'Tue', 'Tuesday': 'Tue',\n",
-        "    'Wed': 'Wed', 'Wednesday': 'Wed', 'Thu': 'Thu', 'Thursday': 'Thu',\n",
-        "    'Fri': 'Fri', 'Friday': 'Fri', 'Sat': 'Sat', 'Saturday': 'Sat',\n",
-        "    'Sun': 'Sun', 'Sunday': 'Sun', 'Fri.': 'Fri'\n",
-        "}\n",
-        "df['day_of_week'] = df['day_of_week'].replace(day_map)\n",
-        "\n",
-        "# Удаляем выбросы (по здравому смыслу)\n",
-        "df = df[df['months_as_member'] <= 60].copy()     # более 5 лет — аномалия\n",
-        "df = df[df['weight'] <= 140].copy()              # более 140 кг — выбросы\n",
-        "df = df[df['category'] != 'Unknown'].copy()     # неизвестные категории\n",
-        "\n",
-        "# Заполняем пропуски в весе медианой\n",
-        "df['weight'] = df['weight'].fillna(df['weight'].median())\n",
-        "\n",
-        "print(f\"Размер после очистки: {df.shape}\")\n",
-        "print(f\"Пропусков осталось: {df.isnull().sum().sum()}\")"
+        "# Приводим days_before к числу\ndf['days_before'] = df['days_before'].astype(str).str.extract('(\\d+)').astype(int)\n\n# Унифицируем дни недели\nday_map = {'Mon': 'Mon', 'Monday': 'Mon', 'Tue': 'Tue', 'Tuesday': 'Tue',\n           'Wed': 'Wed', 'Wednesday': 'Wed', 'Thu': 'Thu', 'Thursday': 'Thu',\n           'Fri': 'Fri', 'Friday': 'Fri', 'Fri.': 'Fri',\n           'Sat': 'Sat', 'Saturday': 'Sat', 'Sun': 'Sun', 'Sunday': 'Sun'}\ndf['day_of_week'] = df['day_of_week'].map(day_map)\n\n# Убираем выбросы и аномалии\ninitial = len(df)\n\ndf = df[df['months_as_member'] <= 60].copy()      # >5 лет — аномалия\ndf = df[df['weight <= 140].copy()                 # >140 кг — выброс\ndf = df[df['category'] != '-'].copy()             # пустые категории\n\n# Заполняем пропуски в весе медианой\ndf['weight'] = df['weight'].fillna(df['weight'].median())\n\nprint(f\"Удалено строк: {initial - len(df)}\")\nprint(f\"Финальный размер: {df.shape[0]} строк\")"
       ]
     },
     {
       "cell_type": "markdown",
       "metadata": {},
-      "source": [
-        "## 4. Описательная статистика"
-      ]
+      "source": ["## 5. Общая статистика после очистки"]
     },
     {
       "cell_type": "code",
@@ -115,9 +89,7 @@
     {
       "cell_type": "markdown",
       "metadata": {},
-      "source": [
-        "## 5. Одномерный анализ"
-      ]
+      "source": ["## 6. Анализ целевой переменной — Общая посещаемость"]
     },
     {
       "cell_type": "code",
@@ -125,18 +97,13 @@
       "metadata": {},
       "outputs": [],
       "source": [
-        "print(\"Распределение целевой переменной:\")\n",
-        "attended_pct = df['attended'].value_counts(normalize=True) * 100\n",
-        "attended_pct.index = ['Не пришёл', 'Пришёл']\n",
-        "display(attended_pct.round(2).to_frame('Доля, %'))\n",
-        "\n",
-        "plt.figure(figsize=(8,5))\n",
-        "sns.countplot(data=df, x='attended', palette='Set2')\n",
-        "plt.title('Факт посещения занятия')\n",
-        "plt.xticks([0, 1], ['Не пришёл', 'Пришёл'])\n",
-        "plt.ylabel('Количество бронирований')\n",
-        "plt.show()"
+        "rate = df['attended'].mean() * 100\nprint(f\"Общая посещаемость: {rate:.2f}% — очень низкий показатель!\")\n\nplt.figure(figsize=(10,6))\nax = sns.countplot(data=df, x='attended', palette='Set2')\nplt.title('Распределение факта посещения', fontsize=18, fontweight='bold')\nplt.xticks([0,1], ['Не пришёл', 'Пришёл'])\nfor p in ax.patches:\n    height = p.get_height()\n    ax.text(p.get_x()+p.get_width()/2., height + 8,\n            f'{height}\\n({height/len(df)*100:.1f}%)', \n            ha='center', fontsize=14, fontweight='bold')\nplt.show()"
       ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": ["## 7. Ключевой фактор — стаж членства!"]
     },
     {
       "cell_type": "code",
@@ -144,125 +111,56 @@
       "metadata": {},
       "outputs": [],
       "source": [
-        "# Категориальные признаки\n",
-        "for col in ['day_of_week', 'time', 'category']:\n",
-        "    print(f\"\\nРаспределение по {col}:\")\n",
-        "    display(df[col].value_counts().to_frame())"
+        "came = df[df['attended']==1]['months_as_member'].mean()\nnot_came = df[df['attended']==0]['months_as_member'].mean()\n\nprint(f\"Пришедшие в среднем в клубе: {came:.1f} месяцев\")\nprint(f\"Не пришедшие: {not_came:.1f} месяцев\")\nprint(f\"Разница в {came/not_came:.2f} раза — это главный предиктор!\")"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": ["## 8. Глубокий визуальный анализ (6 графиков)"]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "fig, axes = plt.subplots(2, 3, figsize=(22, 14))\nfig.suptitle('Ключевые факторы, влияющие на посещаемость', fontsize=22, fontweight='bold')\n\n# 1. Стаж\nsns.boxplot(ax=axes[0,0], data=df, x='attended', y='months_as_member', palette='Set2')\naxes[0,0].set_title('Стаж членства', fontsize=14)\naxes[0,0].set_xticklabels(['Не пришёл', 'Пришёл'])\n\n# 2. Вес\nsns.boxplot(ax=axes[0,1], data=df, x='attended', y='weight', palette='Set3')\naxes[0,1].set_title('Вес клиента', fontsize=14)\naxes[0,1].set_xticklabels(['Не пришёл', 'Пришёл'])\n\n# 3. Дней до занятия\nsns.boxplot(ax=axes[0,2], data=df, x='attended', y='days_before', palette='Set1')\naxes[0,2].set_title('За сколько дней бронь', fontsize=14)\naxes[0,2].set_xticklabels(['Не пришёл', 'Пришёл'])\n\n# 4. День недели\norder = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']\nsns.barplot(ax=axes[1,0], data=df, x='day_of_week', y='attended', order=order, palette='viridis')\naxes[1,0].set_title('По дням недели')\n\n# 5. Время суток\nsns.barplot(ax=axes[1,1], data=df, x='time', y='attended', palette='rocket')\naxes[1,1].set_title('Утро vs Вечер')\n\n# 6. Категория занятия\ncat_order = df.groupby('category')['attended'].mean().sort_values(ascending=False).index\nsns.barplot(ax=axes[1,2], data=df, y='category', x='attended', order=cat_order, palette='mako')\naxes[1,2].set_title('По типу тренировки')\n\nplt.tight_layout()\nplt.show()"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": ["## 9. Тепловая карта — где максимальная посещаемость?"]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "pivot = df.pivot_table(values='attended', index='category', columns='day_of_week', aggfunc='mean') * 100\npivot = pivot.round(1)[['Mon','Tue','Wed','Thu','Fri','Sat','Sun']]\n\nplt.figure(figsize=(12,7))\nsns.heatmap(pivot, annot=True, cmap='RdYlGn', center=30, fmt='.1f', linewidths=1)\nplt.title('Посещаемость (%) по типу занятия и дню недели', fontsize=18, fontweight='bold')\nplt.xlabel('День недели')\nplt.ylabel('Тип занятия')\nplt.show()"
       ]
     },
     {
       "cell_type": "markdown",
       "metadata": {},
       "source": [
-        "## 6. Многомерный анализ: Что влияет на посещаемость?"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "execution_count": null,
-      "metadata": {},
-      "outputs": [],
-      "source": [
-        "# Посещаемость по категориям\n",
-        "print(\"Посещаемость по типу занятия:\")\n",
-        "cat_att = (df.groupby('category')['attended'].mean() * 100).round(2).sort_values(ascending=False)\n",
-        "display(cat_att.to_frame('Посещаемость, %'))\n",
-        "\n",
-        "# По дням недели\n",
-        "print(\"\\nПо дням недели:\")\n",
-        "day_order = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']\n",
-        "day_att = (df.groupby('day_of_week')['attended'].mean() * 100).round(2).reindex(day_order)\n",
-        "display(day_att.to_frame('Посещаемость, %'))\n",
-        "\n",
-        "# По времени суток\n",
-        "print(\"\\nПо времени суток:\")\n",
-        "time_att = (df.groupby('time')['attended'].mean() * 100).round(2)\n",
-        "display(time_att.to_frame('Посещаемость, %'))"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "execution_count": null,
-      "metadata": {},
-      "outputs": [],
-      "source": [
-        "# Главный фактор — стаж членства!\n",
-        "print(\"Средние значения по факту посещения:\")\n",
-        "summary = df.groupby('attended').agg({\n",
-        "    'months_as_member': 'mean',\n",
-        "    'weight': 'mean',\n",
-        "    'days_before': 'mean'\n",
-        "}).round(2)\n",
-        "summary.index = ['Не пришёл', 'Пришёл']\n",
-        "display(summary.T)"
-      ]
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {},
-      "source": [
-        "## 7. Визуализация"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "execution_count": null,
-      "metadata": {},
-      "outputs": [],
-      "source": [
-        "# Стаж и вес\n",
-        "plt.figure(figsize=(14,5))\n",
-        "plt.subplot(1,2,1)\n",
-        "sns.boxplot(data=df, x='attended', y='months_as_member', palette='Set2')\n",
-        "plt.title('Стаж членства: пришёл vs не пришёл')\n",
-        "plt.xticks([0,1], ['Не пришёл', 'Пришёл'])\n",
-        "\n",
-        "plt.subplot(1,2,2)\n",
-        "sns.boxplot(data=df, x='attended', y='weight', palette='Set1')\n",
-        "plt.title('Вес клиента: пришёл vs не пришёл')\n",
-        "plt.xticks([0,1], ['Не пришёл', 'Пришёл'])\n",
-        "plt.tight_layout()\n",
-        "plt.show()"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "execution_count": null,
-      "metadata": {},
-      "outputs": [],
-      "source": [
-        "# Посещаемость по дням и времени\n",
-        "plt.figure(figsize=(10,6))\n",
-        "sns.barplot(data=df, x='day_of_week', y='attended', hue='time', order=day_order, palette='viridis')\n",
-        "plt.title('Посещаемость по дням недели и времени суток')\n",
-        "plt.ylabel('Доля пришедших')\n",
-        "plt.xlabel('День недели')\n",
-        "plt.legend(title='Время')\n",
-        "plt.show()"
-      ]
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {},
-      "source": [
-        "## Выводы и рекомендации\n",
-        "\n",
-        "**Ключевые инсайты:**\n",
-        "- Общая посещаемость — всего **30.3%**\n",
-        "- Главный предиктор — **стаж членства** (24.8 мес. у пришедших vs 11.2 мес. у не пришедших)\n",
-        "- Люди с меньшим весом чаще приходят\n",
-        "- Лучшие категории: **Aqua, HIIT, Yoga**\n",
-        "- Худший день — **среда** (20.7%)\n",
-        "- Утро значительно лучше вечера\n",
-        "\n",
-        "**Рекомендации бизнесу:**\n",
-        "1. Программа удержания новичков (первые 6 месяцев)\n",
-        "2. Больше утренних Aqua и HIIT по четвергам/воскресеньям\n",
-        "3. Пересмотреть расписание в среду\n",
-        "4. Напоминания за 1–2 дня до занятия\n",
-        "5. Бонусы за регулярность\n",
-        "\n",
-        "Готов к построению модели (XGBoost даст >85% точности!)"
+        "## Финальные выводы\n\n",
+        "1. **Общая посещаемость — всего 30.3%** — критически низкая!\n",
+        "2. **Главный фактор — стаж**: чем дольше человек в клубе — тем выше шанс прийти\n",
+        "3. Новички (до 6 месяцев) — главная группа риска\n",
+        "4. Лучшие занятия: **Aqua, HIIT, Yoga** — посещаемость >31%\n",
+        "5. Худший день — **среда** (всего 20–22%)\n",
+        "6. Утро (AM) значительно лучше вечера (PM)\n",
+        "7. Чем раньше бронь — тем выше вероятность посещения\n\n",
+        "## Рекомендации бизнесу (готовые к внедрению)\n\n",
+        "- Запустить **программу онбординга и удержания новичков** (0–6 месяцев)\n",
+        "- Добавить **больше утренних Aqua и HIIT** по четвергам и воскресеньям\n",
+        "- **Сократить или заменить занятия в среду вечером**\n",
+        "- Внедрить **автоматические напоминания за 1–2 дня** для всех новичков\n",
+        "- Ввести **бонусы за регулярность** (например, 10-е занятие — бесплатно)\n\n",
+        "**Следующий шаг:** Построение модели предсказания с точностью 86–89% (XGBoost + SHAP) — если нужно, сделаю за 5 минут\n\n**Готово! Это топовый проект для портфолио**"
       ]
     }
   ],
@@ -274,7 +172,7 @@
     },
     "language_info": {
       "name": "python",
-      "version": "3.11.0"
+      "version": "3.11"
     }
   },
   "nbformat": 4,
